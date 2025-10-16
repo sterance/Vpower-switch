@@ -1,0 +1,10 @@
+{
+  "name": "Vpower-switch",
+  "short_name": "Vpower",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#121212",
+  "theme_color": "#1976d2",
+  "icons": []
+}
+

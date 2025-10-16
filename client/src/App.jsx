@@ -12,7 +12,7 @@ import MachinesPanel from './components/MachinesPanel'
 import Notifications from './components/Notifications'
 
 function App() {
-  const [mode, setMode] = useState('light')
+  const [mode, setMode] = useState('dark')
   const theme = createTheme({ palette: { mode } })
   const [snack, setSnack] = useState({ open: false, message: '', severity: 'info' })
   const [refreshKey, setRefreshKey] = useState(0)

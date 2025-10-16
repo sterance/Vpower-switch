@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const fs = require('fs').promises;
 const path = require('path');
@@ -10,6 +11,7 @@ const { v4: uuidv4 } = require('uuid');
 const app = express();
 const PORT = process.env.PORT || 3000;
 const MACHINES_FILE = path.join(__dirname, 'machines.json');
+const SSH_PRIVATE_KEY_PATH = process.env.SSH_KEY_PATH;
 
 // middleware
 app.use(express.json());
@@ -96,37 +98,59 @@ function wakeMachine(mac) {
 }
 
 // shutdown machine via ssh
-function shutdownMachine(ip, username, keyPath) {
+function shutdownMachine(ip, username) {
   return new Promise((resolve, reject) => {
     const conn = new Client();
+    const keyPath = SSH_PRIVATE_KEY_PATH;
+    console.log(`[poweroff] initiating ssh to ${ip} as ${username} using key at ${keyPath || 'N/A'}`);
     
     conn.on('ready', () => {
+      console.log(`[poweroff] ssh ready for ${ip}, executing shutdown command`);
       conn.exec('shutdown /s /t 0', (err, stream) => {
         if (err) {
+          console.error(`[poweroff] exec error for ${ip}:`, err);
           conn.end();
           reject(err);
           return;
         }
         
         stream.on('close', () => {
+          console.log(`[poweroff] ssh stream closed for ${ip}`);
           conn.end();
           resolve();
         });
         
         stream.stderr.on('data', (data) => {
-          console.error('ssh stderr:', data.toString());
+          console.error(`[poweroff] ssh stderr from ${ip}:`, data.toString());
+        });
+
+        stream.on('data', (data) => {
+          const out = data?.toString?.() ?? String(data);
+          if (out && out.trim()) console.log(`[poweroff] ssh stdout from ${ip}:`, out.trim());
+        });
+
+        stream.on('exit', (code, signal) => {
+          console.log(`[poweroff] ssh command exit for ${ip}: code=${code} signal=${signal || 'none'}`);
         });
       });
     });
     
     conn.on('error', (err) => {
+      console.error(`[poweroff] ssh connection error for ${ip}:`, err);
       reject(err);
     });
     
+    if (!SSH_PRIVATE_KEY_PATH) {
+      console.error('[poweroff] missing SSH_KEY_PATH env; cannot authenticate');
+      reject(new Error('ssh private key path not configured. set SSH_KEY_PATH in .env'));
+      return;
+    }
+
+    console.log(`[poweroff] connecting via ssh to ${ip}...`);
     conn.connect({
       host: ip,
       username: username,
-      privateKey: require('fs').readFileSync(keyPath)
+      privateKey: require('fs').readFileSync(SSH_PRIVATE_KEY_PATH)
     });
   });
 }
@@ -144,20 +168,30 @@ app.get('/api/machines', async (req, res) => {
 
 app.post('/api/machines', async (req, res) => {
   try {
-    const { name, mac, ip, sshUser, sshKeyPath } = req.body;
-    
-    if (!name || !mac || !ip || !sshUser || !sshKeyPath) {
-      return res.status(400).json({ error: 'missing required fields' });
+    const { name, mac, ip, sshUser } = req.body;
+
+    const nameT = (name ?? '').trim();
+    const macT = (mac ?? '').trim();
+    const ipT = (ip ?? '').trim();
+    const sshUserT = (sshUser ?? '').trim();
+
+    const missing = [];
+    if (!nameT) missing.push('name');
+    if (!macT) missing.push('mac');
+    if (!ipT) missing.push('ip');
+    if (!sshUserT) missing.push('sshUser');
+
+    if (missing.length > 0) {
+      return res.status(400).json({ error: 'missing required fields', missing });
     }
     
     const machines = await loadMachines();
     const newMachine = {
       id: uuidv4(),
-      name,
-      mac,
-      ip,
-      sshUser,
-      sshKeyPath
+      name: nameT,
+      mac: macT,
+      ip: ipT,
+      sshUser: sshUserT
     };
     
     machines.push(newMachine);
@@ -227,18 +261,22 @@ app.post('/api/machines/:id/poweron', async (req, res) => {
 app.post('/api/machines/:id/poweroff', async (req, res) => {
   try {
     const { id } = req.params;
+    console.log(`[api] POST /api/machines/${id}/poweroff`);
     const machines = await loadMachines();
     const machine = machines.find(m => m.id === id);
     
     if (!machine) {
+      console.warn(`[api] poweroff failed: machine ${id} not found`);
       return res.status(404).json({ error: 'machine not found' });
     }
     
-    await shutdownMachine(machine.ip, machine.sshUser, machine.sshKeyPath);
+    console.log(`[api] attempting poweroff: name=${machine.name} ip=${machine.ip} user=${machine.sshUser}`);
+    await shutdownMachine(machine.ip, machine.sshUser);
+    console.log(`[api] poweroff success for ${machine.ip}`);
     res.json({ success: true });
   } catch (error) {
     console.error('error shutting down machine:', error);
-    res.status(500).json({ error: 'failed to shutdown machine' });
+    res.status(500).json({ error: 'failed to shutdown machine', details: error?.message || String(error) });
   }
 });
 

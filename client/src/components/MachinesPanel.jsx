@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from 'react'
-import { Paper, Typography, TableContainer, Table, TableHead, TableRow, TableCell, TableBody, CircularProgress, Stack, Button, Box, IconButton } from '@mui/material'
-import DeleteIcon from '@mui/icons-material/Delete'
+import { Paper, Typography, CircularProgress, Stack, Button, Box } from '@mui/material'
+import MachineCard from './MachineCard'
 import client from '../api/client'
 import AddMachineDialog from './AddMachineDialog'
 import ConfirmDialog from './ConfirmDialog'
@@ -10,7 +10,6 @@ function MachinesPanel({ onNotify, refreshKey = 0, openAddKey = 0 }) {
   const [error, setError] = useState('')
   const [rows, setRows] = useState([])
   const [openAdd, setOpenAdd] = useState(false)
-  const [deletingId, setDeletingId] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
   const load = async () => {
@@ -57,15 +56,8 @@ function MachinesPanel({ onNotify, refreshKey = 0, openAddKey = 0 }) {
     }
   }
 
-  const handleDelete = async (id) => {
-    try {
-      await client.delete(`/machines/${id}`)
-      setRows(prev => prev.filter(r => r.id !== id))
-      setDeletingId('')
-      onNotify?.('machine deleted', 'success')
-    } catch (e) {
-      onNotify?.('failed to delete machine', 'error')
-    }
+  const handleDeleted = (id) => {
+    setRows(prev => prev.filter(r => r.id !== id))
   }
 
   const content = useMemo(() => {
@@ -92,41 +84,18 @@ function MachinesPanel({ onNotify, refreshKey = 0, openAddKey = 0 }) {
       )
     }
     return (
-      <TableContainer>
-        <Table size="small">
-          <TableHead>
-            <TableRow>
-              <TableCell>Name</TableCell>
-              <TableCell>MAC</TableCell>
-              <TableCell>IP</TableCell>
-              <TableCell>SSH</TableCell>
-              <TableCell width={120} align="right">Actions</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {rows.map(row => (
-              <TableRow key={row.id} hover>
-                <TableCell>{row.name}</TableCell>
-                <TableCell>{row.mac}</TableCell>
-                <TableCell>{row.ip}</TableCell>
-                <TableCell>{row.sshUser}</TableCell>
-                <TableCell align="right">
-                  <IconButton aria-label="delete" onClick={() => setDeletingId(row.id)}>
-                    <DeleteIcon />
-                  </IconButton>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
+      <Stack spacing={2} sx={{ py: 1 }}>
+        {rows.map(row => (
+          <MachineCard key={row.id} machine={row} onDeleted={handleDeleted} onNotify={onNotify} />
+        ))}
+      </Stack>
     )
   }, [loading, error, rows])
 
   return (
-    <Paper variant="outlined">
+    <Paper>
       <Box sx={{ px: 2, py: 1.5 }}>
-        <Typography variant="h6" textAlign={'center'}>Machines</Typography>
+        <Typography variant="h4" textAlign={'center'}>Machines</Typography>
       </Box>
       <Box sx={{ px: 2, pb: 2 }}>
         {content}
@@ -136,14 +105,6 @@ function MachinesPanel({ onNotify, refreshKey = 0, openAddKey = 0 }) {
         onClose={() => setOpenAdd(false)}
         onSubmit={handleAdd}
         submitting={submitting}
-      />
-      <ConfirmDialog
-        open={Boolean(deletingId)}
-        title="Delete machine?"
-        message="This cannot be undone"
-        confirmText="Delete"
-        onClose={() => setDeletingId('')}
-        onConfirm={() => handleDelete(deletingId)}
       />
     </Paper>
   )
