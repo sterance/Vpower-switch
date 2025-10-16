@@ -1,0 +1,33 @@
+{
+  "name": "Vpower-switch",
+  "version": "1.0.0",
+  "description": "Web app to control Windows machines via WoL and SSH",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev:server": "node server.js",
+    "dev:client": "npm --prefix ./client run dev",
+    "dev": "concurrently -n server,client -c blue,green \"npm run dev:server\" \"npm run dev:client\"",
+    "build:client": "npm --prefix ./client run build",
+    "serve:prod": "NODE_ENV=production node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "ping": "^0.4.4",
+    "ssh2": "^1.15.0",
+    "uuid": "^13.0.0",
+    "wake_on_lan": "^1.0.0"
+  },
+  "keywords": [
+    "wol",
+    "wake-on-lan",
+    "windows",
+    "ssh",
+    "power-control"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}
