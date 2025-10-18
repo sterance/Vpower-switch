@@ -84,11 +84,28 @@ function MachinesPanel({ onNotify, refreshKey = 0, openAddKey = 0 }) {
       )
     }
     return (
-      <Stack spacing={2} sx={{ py: 1 }}>
+      <Box 
+        sx={{ 
+          py: 1,
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: 2
+        }}
+      >
         {rows.map(row => (
-          <MachineCard key={row.id} machine={row} onDeleted={handleDeleted} onNotify={onNotify} />
+          <Box
+            key={row.id}
+            sx={{
+              width: '100%',
+              '@media (min-width: 768px)': {
+                width: 'calc(50% - 8px)'
+              }
+            }}
+          >
+            <MachineCard machine={row} onDeleted={handleDeleted} onNotify={onNotify} />
+          </Box>
         ))}
-      </Stack>
+      </Box>
     )
   }, [loading, error, rows])
 
