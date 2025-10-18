@@ -1,6 +1,6 @@
 # Vpower-switch Installation Guide
 
-Vpower-switch is a self-hosted web app to control Windows machines via Wake-on-LAN (WoL) and SSH \[cite: sterance/vpower-switch/Vpower-switch-e52fa28c3b356dbfe52859f3031bc415b218ecab/package.json, sterance/vpower-switch/Vpower-switch-e52fa28c3b356dbfe52859f3031bc415b218ecab/server.js\]. This guide covers setting up the server and configuring a new Windows 11 PC as a target.
+Vpower-switch is a self-hosted web app to control Windows machines via Wake-on-LAN (WoL) and SSH. This guide covers setting up the server and configuring a new Windows 11 PC as a target.
 
 ## Prerequisites
 
@@ -21,7 +21,7 @@ These steps are for the machine that will host the web application.
     ```
 
 2.  **Install all dependencies:**
-    This installs dependencies for both the server and the client \[cite: sterance/vpower-switch/Vpower-switch-e52fa28c3b356dbfe52859f3031bc415b218ecab/package.json\].
+    This installs dependencies for both the server and the client.
     ```bash
     npm install
     ```
@@ -49,7 +49,7 @@ These steps are for the machine that will host the web application.
     nano .env
     ```
 
-    Add the following lines, pasting the path you just copied. The ports are optional and will default to `3000` (backend) and `5173` (dev frontend) \[cite: sterance/vpower-switch/Vpower-switch-e52fa28c3b356dbfe52859f3031bc415b218ecab/server.js, sterance/vpower-switch/Vpower-switch-e52fa28c3b356dbfe52859f3031bc415b218ecab/client/vite.config.js\].
+    Add the following lines, pasting the path you just copied. The ports are optional and will default to `3000` (backend) and `5173` (dev frontend).
 
     ```ini
     # .env file content
@@ -86,14 +86,14 @@ These steps must be run on **each** Windows 11 PC you want to control. You must 
     This is required for the app to find your PC.
     * **Recommended:** Log in to your router and set a **DHCP Reservation** for the `MacAddress` you just found.
     * **Alternative (PowerShell):** Manually assign a static IP.
-      ```powershell
-      # Get your current config first to find the ifIndex and Gateway
-      Get-NetIPConfiguration
-      
-      # Example command (replace values):
-      New-NetIPAddress -InterfaceIndex <ifIndex> -IPAddress <CHOOSE_STATIC_IP> -PrefixLength 24 -DefaultGateway <YOUR_Gateway>
-      Set-DnsClientServerAddress -InterfaceIndex <ifIndex> -ServerAddresses ("1.1.1.1", "8.8.8.8")
-      ```
+        ```powershell
+        # Get your current config first to find the ifIndex and Gateway
+        Get-NetIPConfiguration
+        
+        # Example command (replace values):
+        New-NetIPAddress -InterfaceIndex <ifIndex> -IPAddress <CHOOSE_STATIC_IP> -PrefixLength 24 -DefaultGateway <YOUR_Gateway>
+        Set-DnsClientServerAddress -InterfaceIndex <ifIndex> -ServerAddresses ("1.1.1.1", "8.8.8.8")
+        ```
 
 ### 2. Configure Power On (Wake-on-LAN)
 
@@ -120,7 +120,7 @@ These steps must be run on **each** Windows 11 PC you want to control. You must 
     ```
 
 2.  **Authorize your Server's SSH Key (PowerShell):**
-    This grants your server administrator access to run the shutdown command \[cite: sterance/vpower-switch/Vpower-switch-e52fa28c3b356dbfe52859f3031bc415b218ecab/server.js\].
+    This grants your server administrator access to run the shutdown command.
     ```powershell
     $AuthKeysFile = "$env:PROGRAMDATA\ssh\administrators_authorized_keys"
     
@@ -139,41 +139,6 @@ These steps must be run on **each** Windows 11 PC you want to control. You must 
 
 ### 4. Configure Status Check (Firewall)
 
-This allows the server to ping the PC to see if it's online \[cite: sterance/vpower-switch/Vpower-switch-e52fa28c3b356dbfe52859f3031bc415b218ecab/server.js\].
+This allows the server to ping the PC to see if it's online.
 ```powershell
 Enable-NetFirewallRule -DisplayName "File and Printer Sharing (Echo Request - ICMPv4-In)"
-```
-
----
-
-## Part 3: Run the Application
-
-Return to your server machine to build and run the app.
-
-1.  **Build the Client:**
-    This bundles the React front-end for production \[cite: sterance/vpower-switch/Vpower-switch-e52fa28c3b356dbfe52859f3031bc415b218ecab/package.json\].
-    ```bash
-    npm run build:client
-    ```
-
-2.  **Run the Server:**
-    This serves the client and starts the API \[cite: sterance/vpower-switch/Vpower-switch-e52fa28c3b356dbfe52859f3031bc415b218ecab/package.json, sterance/vpower-switch/Vpower-switch-e52fa28c3b356dbfe52859f3031bc415b218ecab/server.js\].
-    ```bash
-    # Run in production mode
-    npm run serve:prod
-    ```
-
----
-
-## Part 4: Add Your Machine
-
-1.  Open your browser and navigate to your server (e.g., `http://<your_server_ip>:3000`).
-2.  Click the large **Add** icon in the toolbar \[cite: sterance/vpower-switch/Vpower-switch-e52fa28c3b356dbfe52859f3031bc415b218ecab/client/src/App.jsx\].
-3.  Fill in the details for your target PC \[cite: sterance/vpower-switch/Vpower-switch-e52fa28c3b356dbfe52859f3031bc415b218ecab/client/src/components/AddMachineDialog.jsx\]:
-    * **Custom Name:** Any name (e.g., "Gaming PC").
-    * **MAC Address:** The `MacAddress` from Part 2 (e.g., `AA-BB-CC-DD-EE-FF`).
-    * **IP Address:** The static IP from Part 2 (e.g., `192.168.1.100`).
-    * **SSH Username:** Your Windows **administrator** username.
-4.  Click **add**.
-
-Your new machine card will appear and should now be fully controllable.
