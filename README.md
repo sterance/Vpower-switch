@@ -16,7 +16,7 @@ These steps are for the machine that will host the web application.
 
 1.  **Clone the repository:**
     ```bash
-    git clone [https://github.com/sterance/vpower-switch.git](https://github.com/sterance/vpower-switch.git)
+    git clone https://github.com/sterance/vpower-switch.git
     cd vpower-switch
     ```
 
