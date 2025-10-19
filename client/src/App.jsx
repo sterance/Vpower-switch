@@ -24,7 +24,7 @@ function App() {
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <AppBar position="static">
-      <Toolbar sx={{ justifyContent: 'space-between' }}>
+      <Toolbar sx={{ justifyContent: 'space-between', paddingTop: '0.5rem', paddingBottom: '0.5rem' }}>
           <IconButton
             color="inherit"
             aria-label="refresh"

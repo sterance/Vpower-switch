@@ -20,13 +20,17 @@ These steps are for the machine that will host the web application.
     cd vpower-switch
     ```
 
-2.  **Install all dependencies:**
-    This installs dependencies for both the server and the client.
+2.  **Install server dependencies:**
     ```bash
     npm install
     ```
 
-3.  **Generate a dedicated SSH key:**
+3.  **Install client dependencies:**
+    ```bash
+    npm --prefix ./client install
+    ```
+
+4.  **Generate a dedicated SSH key:**
     This key will be used to securely connect to your Windows PCs.
     ```bash
     # Press Enter for all prompts to create a key with no passphrase
@@ -34,7 +38,7 @@ These steps are for the machine that will host the web application.
     ```
     *This creates a private key (`vpower_key`) and a public key (`vpower_key.pub`).*
 
-4.  **Configure the server environment:**
+5.  **Configure the server environment:**
     Create a `.env` file in the root of the project. You will need the absolute path to your new **private key**.
 
     ```bash
@@ -60,7 +64,7 @@ These steps are for the machine that will host the web application.
     # FRONTEND_PORT=8080
     ```
 
-5.  **Copy your public key:**
+6.  **Copy your public key:**
     Run the command below and copy the entire output (starting with `ssh-ed25519...`). You will paste this into the Windows PC in the next section.
     ```bash
     echo "--- Copy your public key below ---"
