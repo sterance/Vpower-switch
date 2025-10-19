@@ -169,14 +169,22 @@ Return to your server machine to build and run the app.
 
 ### Optional: Run as a Systemd Service
 
-To automatically start the server on boot, you can set it up as a systemd service.
+To automatically start the server on boot, you can set it up as a systemd service. **Note:** Make sure you've completed step 1 (building the client) before setting this up.
 
 1.  **Create a service file:**
     ```bash
     sudo nano /etc/systemd/system/vpower-switch.service
     ```
 
-2.  **Add the following configuration** (update the paths and username):
+2.  **Find your Node.js and npm paths:**
+    Run these commands to get the full paths:
+    ```bash
+    which node
+    which npm
+    ```
+    Copy these paths - you'll need them in the next step.
+
+3.  **Add the following configuration** (update the paths and username):
     ```ini
     [Unit]
     Description=Vpower Switch Server
@@ -187,30 +195,39 @@ To automatically start the server on boot, you can set it up as a systemd servic
     User=your_username
     WorkingDirectory=/home/your_username/vpower-switch
     Environment="NODE_ENV=production"
-    ExecStart=/usr/bin/node server.js
+    Environment="PATH=/home/your_username/.nvm/versions/node/vXX.XX.X/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+    ExecStart=/home/your_username/.nvm/versions/node/vXX.XX.X/bin/npm run serve:prod
     Restart=on-failure
     RestartSec=10
 
     [Install]
     WantedBy=multi-user.target
     ```
+    **Important:** Replace the paths in the `Environment="PATH=..."` and `ExecStart=` lines with the actual paths from step 2.
 
-3.  **Enable and start the service:**
+4.  **Enable and start the service:**
     ```bash
     sudo systemctl daemon-reload
     sudo systemctl enable vpower-switch.service
     sudo systemctl start vpower-switch.service
     ```
 
-4.  **Check the status:**
+5.  **Check the status:**
     ```bash
     sudo systemctl status vpower-switch.service
     ```
 
-5.  **View logs if needed:**
+6.  **View logs if needed:**
     ```bash
     sudo journalctl -u vpower-switch.service -f
     ```
+
+**Note:** If you update the code or pull changes, you'll need to rebuild the client and restart the service:
+```bash
+cd /home/your_username/vpower-switch
+npm run build:client
+sudo systemctl restart vpower-switch.service
+```
 
 ---
 
