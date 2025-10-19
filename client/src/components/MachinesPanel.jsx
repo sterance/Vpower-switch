@@ -5,7 +5,7 @@ import client from '../api/client'
 import AddMachineDialog from './AddMachineDialog'
 import ConfirmDialog from './ConfirmDialog'
 
-function MachinesPanel({ onNotify, refreshKey = 0, openAddKey = 0 }) {
+function MachinesPanel({ onNotify, refreshKey = 0, openAddKey = 0, onRefresh }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [rows, setRows] = useState([])

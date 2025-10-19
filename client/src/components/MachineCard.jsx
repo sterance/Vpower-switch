@@ -57,7 +57,7 @@ function MachineCard({ machine, onDeleted, onNotify }) {
         setDeleting(true)
         await client.delete(`/machines/${machine.id}`)
         onNotify?.('machine deleted successfully', 'success')
-        onDeleted?.()
+        onDeleted?.(machine.id)
       } catch (e) {
         onNotify?.('failed to delete machine', 'error')
       } finally {

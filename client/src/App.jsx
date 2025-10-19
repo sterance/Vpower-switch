@@ -19,6 +19,7 @@ function App() {
   const [openAddKey, setOpenAddKey] = useState(0)
   const notify = (message, severity = 'info') => setSnack({ open: true, message, severity })
   const closeSnack = () => setSnack(s => ({ ...s, open: false }))
+  const triggerRefresh = () => setRefreshKey(k => k + 1)
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
@@ -27,7 +28,7 @@ function App() {
           <IconButton
             color="inherit"
             aria-label="refresh"
-            onClick={() => setRefreshKey(k => k + 1)}
+            onClick={triggerRefresh}
           >
             <RefreshIcon />
           </IconButton>
@@ -55,6 +56,7 @@ function App() {
               onNotify={notify}
               refreshKey={refreshKey}
               openAddKey={openAddKey}
+              onRefresh={triggerRefresh}
             />
           </Stack>
         </Box>
