@@ -167,6 +167,51 @@ Return to your server machine to build and run the app.
     npm run serve:prod
     ```
 
+### Optional: Run as a Systemd Service
+
+To automatically start the server on boot, you can set it up as a systemd service.
+
+1.  **Create a service file:**
+    ```bash
+    sudo nano /etc/systemd/system/vpower-switch.service
+    ```
+
+2.  **Add the following configuration** (update the paths and username):
+    ```ini
+    [Unit]
+    Description=Vpower Switch Server
+    After=network.target
+
+    [Service]
+    Type=simple
+    User=your_username
+    WorkingDirectory=/home/your_username/vpower-switch
+    Environment="NODE_ENV=production"
+    ExecStart=/usr/bin/node server.js
+    Restart=on-failure
+    RestartSec=10
+
+    [Install]
+    WantedBy=multi-user.target
+    ```
+
+3.  **Enable and start the service:**
+    ```bash
+    sudo systemctl daemon-reload
+    sudo systemctl enable vpower-switch.service
+    sudo systemctl start vpower-switch.service
+    ```
+
+4.  **Check the status:**
+    ```bash
+    sudo systemctl status vpower-switch.service
+    ```
+
+5.  **View logs if needed:**
+    ```bash
+    sudo journalctl -u vpower-switch.service -f
+    ```
+
 ---
 
 ## Part 4: Add Your Machine
