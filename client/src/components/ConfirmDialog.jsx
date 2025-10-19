@@ -28,5 +28,3 @@ function ConfirmDialog({ open, title, message, confirmText = 'Confirm', cancelTe
 }
 
 export default ConfirmDialog
-
-

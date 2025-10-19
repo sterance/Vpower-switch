@@ -148,5 +148,3 @@ function MachineCard({ machine, onDeleted, onNotify }) {
 }
 
 export default MachineCard
-
-

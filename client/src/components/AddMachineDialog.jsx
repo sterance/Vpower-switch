@@ -15,9 +15,6 @@ function AddMachineDialog({ open, onClose, onSubmit, submitting = false }) {
   const handleScanSelect = (device) => {
     setIp(device.ip)
     setMac(device.mac)
-    if (device.hostname && !name) {
-      setName(device.hostname)
-    }
   }
 
   const handleSubmit = () => {
@@ -66,5 +63,3 @@ function AddMachineDialog({ open, onClose, onSubmit, submitting = false }) {
 }
 
 export default AddMachineDialog
-
-

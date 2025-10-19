@@ -60,7 +60,6 @@ function ScanNetworkDialog({ open, onClose, onSelect }) {
                 <ListItemButton onClick={() => handleSelect(device)}>
                   <ComputerIcon sx={{ mr: 2, color: 'primary.main' }} />
                   <ListItemText
-                    primary={device.hostname || device.ip}
                     secondary={
                       <>
                         <Typography component="span" variant="body2" display="block">
@@ -89,4 +88,3 @@ function ScanNetworkDialog({ open, onClose, onSelect }) {
 }
 
 export default ScanNetworkDialog
-
