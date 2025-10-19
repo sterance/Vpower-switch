@@ -1,13 +1,24 @@
 import { useState } from 'react'
-import { Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, Stack } from '@mui/material'
+import { Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, Stack, IconButton, Box } from '@mui/material'
+import NetworkCheckIcon from '@mui/icons-material/NetworkCheck'
+import ScanNetworkDialog from './ScanNetworkDialog'
 
 function AddMachineDialog({ open, onClose, onSubmit, submitting = false }) {
   const [name, setName] = useState('')
   const [mac, setMac] = useState('')
   const [ip, setIp] = useState('')
   const [sshUser, setSshUser] = useState('')
+  const [scanOpen, setScanOpen] = useState(false)
 
   const canSubmit = name && mac && ip && sshUser
+
+  const handleScanSelect = (device) => {
+    setIp(device.ip)
+    setMac(device.mac)
+    if (device.hostname && !name) {
+      setName(device.hostname)
+    }
+  }
 
   const handleSubmit = () => {
     if (!canSubmit) return
@@ -22,9 +33,17 @@ function AddMachineDialog({ open, onClose, onSubmit, submitting = false }) {
   }
 
   return (
-    <Dialog open={open} onClose={onClose} slotProps={{ transition: { onExited: handleExited } }}>
-      <DialogTitle>Add machine</DialogTitle>
-      <DialogContent>
+    <>
+      <Dialog open={open} onClose={onClose} slotProps={{ transition: { onExited: handleExited } }}>
+        <DialogTitle>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            Add machine
+            <IconButton onClick={() => setScanOpen(true)} color="primary" aria-label="scan network">
+              <NetworkCheckIcon />
+            </IconButton>
+          </Box>
+        </DialogTitle>
+        <DialogContent>
         <Stack spacing={2} sx={{ mt: 1, width: 420, maxWidth: '100%' }}>
           <TextField label="Custom Name" value={name} onChange={e => setName(e.target.value)} autoFocus fullWidth />
           <TextField label="MAC Address" value={mac} onChange={e => setMac(e.target.value)} placeholder="AA:BB:CC:DD:EE:FF" fullWidth />
@@ -36,7 +55,13 @@ function AddMachineDialog({ open, onClose, onSubmit, submitting = false }) {
         <Button onClick={onClose}>cancel</Button>
         <Button variant="contained" onClick={handleSubmit} disabled={!canSubmit || submitting}>add</Button>
       </DialogActions>
-    </Dialog>
+      </Dialog>
+      <ScanNetworkDialog
+        open={scanOpen}
+        onClose={() => setScanOpen(false)}
+        onSelect={handleScanSelect}
+      />
+    </>
   )
 }
 

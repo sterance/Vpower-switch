@@ -7,6 +7,9 @@ const wol = require('wake_on_lan');
 const ping = require('ping');
 const net = require('net');
 const { v4: uuidv4 } = require('uuid');
+const { exec } = require('child_process');
+const { promisify } = require('util');
+const execAsync = promisify(exec);
 
 const app = express();
 const PORT = process.env.BACKEND_PORT || 3000;
@@ -155,6 +158,103 @@ function shutdownMachine(ip, username) {
   });
 }
 
+// scan local network for windows machines
+async function scanNetwork() {
+  try {
+    console.log('[scan] starting network scan...');
+    const results = [];
+    
+    // get arp table
+    const { stdout: arpOutput } = await execAsync('arp -a');
+    console.log('[scan] arp table retrieved');
+    
+    // parse arp table to get ip/mac mappings
+    const arpLines = arpOutput.split('\n');
+    const devices = [];
+    
+    for (const line of arpLines) {
+      // match ip and mac address patterns
+      const ipMatch = line.match(/(\d+\.\d+\.\d+\.\d+)/);
+      const macMatch = line.match(/([0-9a-fA-F]{2}[:-]){5}([0-9a-fA-F]{2})/);
+      
+      if (ipMatch && macMatch) {
+        const ip = ipMatch[1];
+        const mac = macMatch[0].toUpperCase().replace(/-/g, ':');
+        
+        // skip localhost and broadcast
+        if (ip === '127.0.0.1' || ip.endsWith('.255') || mac === '00:00:00:00:00:00') {
+          continue;
+        }
+        
+        devices.push({ ip, mac });
+      }
+    }
+    
+    console.log(`[scan] found ${devices.length} devices in arp table`);
+    
+    // check each device for windows (smb port 445 or netbios port 139)
+    for (const device of devices) {
+      try {
+        const isWindows = await checkWindowsPort(device.ip);
+        if (isWindows) {
+          // try to get hostname
+          let hostname = null;
+          try {
+            const { stdout } = await execAsync(`ping -c 1 -W 1 ${device.ip}`);
+            const hostnameMatch = stdout.match(/from\s+([^\s(]+)/);
+            if (hostnameMatch && hostnameMatch[1] !== device.ip) {
+              hostname = hostnameMatch[1];
+            }
+          } catch (e) {
+            // hostname resolution failed
+          }
+          
+          results.push({
+            ip: device.ip,
+            mac: device.mac,
+            hostname: hostname
+          });
+        }
+      } catch (e) {
+        // device check failed, skip
+      }
+    }
+    
+    console.log(`[scan] found ${results.length} windows machines`);
+    return results;
+  } catch (error) {
+    console.error('[scan] network scan error:', error);
+    throw error;
+  }
+}
+
+// check if host has windows smb port open
+function checkWindowsPort(ip) {
+  return new Promise((resolve) => {
+    const socket = new net.Socket();
+    const timeout = 1000;
+    
+    socket.setTimeout(timeout);
+    
+    socket.on('connect', () => {
+      socket.destroy();
+      resolve(true);
+    });
+    
+    socket.on('timeout', () => {
+      socket.destroy();
+      resolve(false);
+    });
+    
+    socket.on('error', () => {
+      socket.destroy();
+      resolve(false);
+    });
+    
+    socket.connect(445, ip);
+  });
+}
+
 // api routes
 app.get('/api/machines', async (req, res) => {
   try {
@@ -277,6 +377,17 @@ app.post('/api/machines/:id/poweroff', async (req, res) => {
   } catch (error) {
     console.error('error shutting down machine:', error);
     res.status(500).json({ error: 'failed to shutdown machine', details: error?.message || String(error) });
+  }
+});
+
+app.get('/api/scan', async (req, res) => {
+  try {
+    console.log('[api] GET /api/scan - starting network scan');
+    const devices = await scanNetwork();
+    res.json(devices);
+  } catch (error) {
+    console.error('error scanning network:', error);
+    res.status(500).json({ error: 'failed to scan network', details: error?.message || String(error) });
   }
 });
 

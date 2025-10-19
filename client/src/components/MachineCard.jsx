@@ -2,6 +2,8 @@ import { useEffect, useState, useCallback } from 'react'
 import { Card, CardContent, Typography, Box, Stack, Tooltip, Fade, Chip, Switch, IconButton } from '@mui/material'
 import PowerSettingsNewIcon from '@mui/icons-material/PowerSettingsNew'
 import DeleteIcon from '@mui/icons-material/Delete'
+import VisibilityIcon from '@mui/icons-material/Visibility'
+import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
 import client from '../api/client'
 
 function MachineCard({ machine, onDeleted, onNotify }) {
@@ -9,6 +11,9 @@ function MachineCard({ machine, onDeleted, onNotify }) {
   const [isOnline, setIsOnline] = useState(false)
   const [toggling, setToggling] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [showMac, setShowMac] = useState(false)
+  const [showIp, setShowIp] = useState(false)
+  const [showSsh, setShowSsh] = useState(false)
 
   const fetchStatus = useCallback(async ({ silent } = { silent: false }) => {
     try {
@@ -97,20 +102,29 @@ function MachineCard({ machine, onDeleted, onNotify }) {
         </Tooltip>
         <PowerSettingsNewIcon sx={{ color: iconColor, filter: `drop-shadow(0 0 10px ${glowColor})`, transform: 'scale(2)' }} />
       </Box>
-      <Typography variant="h5" align="center">{machine.name}</Typography>
+      <Typography variant="h5" sx={{ padding:'1rem' }}>{machine.name}</Typography>
       <CardContent>
         <Stack spacing={0.5} sx={{ mt: 1 }}>
           <Stack direction="row" spacing={1} alignItems="center">
             <Typography variant="body2" color="text.secondary" sx={{ width: '2rem' }}>mac</Typography>
-            <Chip size="small" label={machine.mac} variant="outlined" />
+            <IconButton size="small" onClick={() => setShowMac(!showMac)}>
+              {showMac ? <VisibilityOffIcon fontSize="small" /> : <VisibilityIcon fontSize="small" />}
+            </IconButton>
+            <Chip size="small" label={showMac ? machine.mac : '••••••••••••'} variant="outlined" />
           </Stack>
           <Stack direction="row" spacing={1} alignItems="center">
             <Typography variant="body2" color="text.secondary" sx={{ width: '2rem' }}>ip</Typography>
-            <Chip size="small" label={machine.ip} variant="outlined" />
+            <IconButton size="small" onClick={() => setShowIp(!showIp)}>
+              {showIp ? <VisibilityOffIcon fontSize="small" /> : <VisibilityIcon fontSize="small" />}
+            </IconButton>
+            <Chip size="small" label={showIp ? machine.ip : '•••••••••'} variant="outlined" />
           </Stack>
           <Stack direction="row" spacing={1} alignItems="center">
             <Typography variant="body2" color="text.secondary" sx={{ width: '2rem' }}>ssh</Typography>
-            <Chip size="small" label={machine.sshUser} variant="outlined" />
+            <IconButton size="small" onClick={() => setShowSsh(!showSsh)}>
+              {showSsh ? <VisibilityOffIcon fontSize="small" /> : <VisibilityIcon fontSize="small" />}
+            </IconButton>
+            <Chip size="small" label={showSsh ? machine.sshUser : '••••••'} variant="outlined" />
           </Stack>
         </Stack>
       </CardContent>
