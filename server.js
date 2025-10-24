@@ -101,15 +101,29 @@ function wakeMachine(mac) {
 }
 
 // shutdown machine via ssh
-function shutdownMachine(ip, username) {
+function shutdownMachine(ip, username, os) {
   return new Promise((resolve, reject) => {
+    // determine shutdown command based on os
+    let shutdownCmd;
+    switch (os) {
+      case 'windows':
+        shutdownCmd = 'shutdown /s /t 0';
+        break;
+      case 'linux':
+        shutdownCmd = 'sudo shutdown -h now';
+        break;
+      default:
+        reject(new Error(`unsupported os type: ${os}. supported types: windows, linux`));
+        return;
+    }
+    
     const conn = new Client();
     const keyPath = SSH_PRIVATE_KEY_PATH;
     console.log(`[poweroff] initiating ssh to ${ip} as ${username} using key at ${keyPath || 'N/A'}`);
     
     conn.on('ready', () => {
-      console.log(`[poweroff] ssh ready for ${ip}, executing shutdown command`);
-      conn.exec('shutdown /s /t 0', (err, stream) => {
+      console.log(`[poweroff] ssh ready for ${ip}, executing shutdown command: ${shutdownCmd}`);
+      conn.exec(shutdownCmd, (err, stream) => {
         if (err) {
           console.error(`[poweroff] exec error for ${ip}:`, err);
           conn.end();
@@ -192,11 +206,11 @@ async function scanNetwork() {
     
     console.log(`[scan] found ${devices.length} devices in arp table`);
     
-    // check each device for windows (smb port 445 or netbios port 139)
+    // check each device for os type
     for (const device of devices) {
       try {
-        const isWindows = await checkWindowsPort(device.ip);
-        if (isWindows) {
+        const os = await detectOS(device.ip);
+        if (os !== 'unknown') {
           // try to get hostname
           let hostname = null;
           try {
@@ -212,7 +226,8 @@ async function scanNetwork() {
           results.push({
             ip: device.ip,
             mac: device.mac,
-            hostname: hostname
+            hostname: hostname,
+            os: os
           });
         }
       } catch (e) {
@@ -220,7 +235,7 @@ async function scanNetwork() {
       }
     }
     
-    console.log(`[scan] found ${results.length} windows machines`);
+    console.log(`[scan] found ${results.length} machines (windows/linux)`);
     return results;
   } catch (error) {
     console.error('[scan] network scan error:', error);
@@ -228,11 +243,27 @@ async function scanNetwork() {
   }
 }
 
-// check if host has windows smb port open
-function checkWindowsPort(ip) {
+// detect operating system by checking specific ports
+async function detectOS(ip) {
+  // check for windows (smb port 445)
+  const hasWindowsPort = await checkPort(ip, 445, 1000);
+  if (hasWindowsPort) {
+    return 'windows';
+  }
+  
+  // check for linux (ssh port 22)
+  const hasLinuxPort = await checkPort(ip, 22, 1000);
+  if (hasLinuxPort) {
+    return 'linux';
+  }
+  
+  return 'unknown';
+}
+
+// check if specific port is open on host
+function checkPort(ip, port, timeout = 1000) {
   return new Promise((resolve) => {
     const socket = new net.Socket();
-    const timeout = 1000;
     
     socket.setTimeout(timeout);
     
@@ -251,7 +282,7 @@ function checkWindowsPort(ip) {
       resolve(false);
     });
     
-    socket.connect(445, ip);
+    socket.connect(port, ip);
   });
 }
 
@@ -268,21 +299,33 @@ app.get('/api/machines', async (req, res) => {
 
 app.post('/api/machines', async (req, res) => {
   try {
-    const { name, mac, ip, sshUser } = req.body;
+    const { name, mac, ip, sshUser, os } = req.body;
 
     const nameT = (name ?? '').trim();
     const macT = (mac ?? '').trim();
     const ipT = (ip ?? '').trim();
     const sshUserT = (sshUser ?? '').trim();
+    const osT = (os ?? '').trim();
 
     const missing = [];
     if (!nameT) missing.push('name');
     if (!macT) missing.push('mac');
     if (!ipT) missing.push('ip');
     if (!sshUserT) missing.push('sshUser');
+    if (!osT) missing.push('os');
 
     if (missing.length > 0) {
       return res.status(400).json({ error: 'missing required fields', missing });
+    }
+    
+    // validate os type (extensible for future os types)
+    const validOsTypes = ['windows', 'linux'];
+    if (!validOsTypes.includes(osT)) {
+      return res.status(400).json({ 
+        error: 'invalid os type', 
+        provided: osT,
+        supported: validOsTypes 
+      });
     }
     
     const machines = await loadMachines();
@@ -291,7 +334,8 @@ app.post('/api/machines', async (req, res) => {
       name: nameT,
       mac: macT,
       ip: ipT,
-      sshUser: sshUserT
+      sshUser: sshUserT,
+      os: osT
     };
     
     machines.push(newMachine);
@@ -370,8 +414,8 @@ app.post('/api/machines/:id/poweroff', async (req, res) => {
       return res.status(404).json({ error: 'machine not found' });
     }
     
-    console.log(`[api] attempting poweroff: name=${machine.name} ip=${machine.ip} user=${machine.sshUser}`);
-    await shutdownMachine(machine.ip, machine.sshUser);
+    console.log(`[api] attempting poweroff: name=${machine.name} ip=${machine.ip} user=${machine.sshUser} os=${machine.os}`);
+    await shutdownMachine(machine.ip, machine.sshUser, machine.os);
     console.log(`[api] poweroff success for ${machine.ip}`);
     res.json({ success: true });
   } catch (error) {

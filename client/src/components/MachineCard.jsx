@@ -71,6 +71,7 @@ function MachineCard({ machine, onDeleted, onNotify }) {
 
   return (
     <Card variant="outlined" sx={{ position: 'relative', overflow: 'visible', padding: '0.5rem' }}>
+      <img src={`${machine.os}.png`} alt={machine.os} style={{ filter: 'saturate(0%)', position: 'absolute', top: '60%', left: '60%', transform: 'translate(-50%, -50%)', height: '125px', opacity: '0.1' }}/>
       <Box sx={{ position: 'absolute', top: '1.5rem', right: '1.9rem', display: 'flex', alignItems: 'center', gap: 3 }}>
         <Tooltip slots={{ transition: Fade }} title={isOnline ? 'turn off' : 'turn on'}>
           <span>
