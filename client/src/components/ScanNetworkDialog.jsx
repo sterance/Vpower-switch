@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Dialog, DialogTitle, DialogContent, DialogActions, Button, List, ListItem, ListItemButton, ListItemText, CircularProgress, Stack, Typography, Alert } from '@mui/material'
+import { Dialog, DialogTitle, DialogContent, DialogActions, Button, List, ListItem, ListItemButton, ListItemText, CircularProgress, Stack, Typography, Alert, Box } from '@mui/material'
 import ComputerIcon from '@mui/icons-material/Computer'
 import client from '../api/client'
 
@@ -36,6 +36,24 @@ function ScanNetworkDialog({ open, onClose, onSelect }) {
     onClose()
   }
 
+  const renderOSIcon = (os) => {
+    const iconStyle = {
+      width: 24,
+      height: 24,
+      filter: 'grayscale(100%) brightness(0.7)',
+      marginRight: 16
+    }
+
+    switch (os?.toLowerCase()) {
+      case 'windows':
+        return <img src="/windows.png" alt="Windows" style={iconStyle} />
+      case 'linux':
+        return <img src="/linux.png" alt="Linux" style={iconStyle} />
+      default:
+        return <ComputerIcon sx={{ mr: 2, color: 'primary.main' }} />
+    }
+  }
+
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle>Scan network</DialogTitle>
@@ -58,8 +76,9 @@ function ScanNetworkDialog({ open, onClose, onSelect }) {
             {devices.map((device, idx) => (
               <ListItem key={idx} disablePadding>
                 <ListItemButton onClick={() => handleSelect(device)}>
-                  <ComputerIcon sx={{ mr: 2, color: 'primary.main' }} />
+                  {renderOSIcon(device.os)}
                   <ListItemText
+                    primary={device.hostname || device.ip}
                     secondary={
                       <>
                         <Typography component="span" variant="body2" display="block">
@@ -67,6 +86,9 @@ function ScanNetworkDialog({ open, onClose, onSelect }) {
                         </Typography>
                         <Typography component="span" variant="body2" display="block">
                           MAC: {device.mac}
+                        </Typography>
+                        <Typography component="span" variant="body2" display="block" color="primary">
+                          OS: {device.os}
                         </Typography>
                       </>
                     }
