@@ -78,7 +78,6 @@ function ScanNetworkDialog({ open, onClose, onSelect }) {
                 <ListItemButton onClick={() => handleSelect(device)}>
                   {renderOSIcon(device.os)}
                   <ListItemText
-                    primary={device.hostname || device.ip}
                     secondary={
                       <>
                         <Typography component="span" variant="body2" display="block">
@@ -86,9 +85,6 @@ function ScanNetworkDialog({ open, onClose, onSelect }) {
                         </Typography>
                         <Typography component="span" variant="body2" display="block">
                           MAC: {device.mac}
-                        </Typography>
-                        <Typography component="span" variant="body2" display="block" color="primary">
-                          OS: {device.os}
                         </Typography>
                       </>
                     }
