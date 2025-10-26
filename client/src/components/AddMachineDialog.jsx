@@ -39,7 +39,12 @@ function AddMachineDialog({ open, onClose, onSubmit, submitting = false }) {
 
   return (
     <>
-      <Dialog open={open} onClose={onClose} slotProps={{ transition: { onExited: handleExited } }}>
+      <Dialog 
+        open={open} 
+        onClose={onClose} 
+        slotProps={{ transition: { onExited: handleExited } }}
+        disableEnforceFocus
+      >
         <DialogTitle>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             Add machine

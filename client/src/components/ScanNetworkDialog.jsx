@@ -55,7 +55,13 @@ function ScanNetworkDialog({ open, onClose, onSelect }) {
   }
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+    <Dialog 
+      open={open} 
+      onClose={onClose} 
+      maxWidth="sm" 
+      fullWidth
+      disableEnforceFocus
+    >
       <DialogTitle>Scan network</DialogTitle>
       <DialogContent>
         {scanning && (

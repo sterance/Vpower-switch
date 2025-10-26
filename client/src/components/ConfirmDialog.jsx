@@ -6,6 +6,7 @@ function ConfirmDialog({ open, title, message, confirmText = 'Confirm', cancelTe
       open={open}
       onClose={onClose}
       aria-labelledby="confirm-title"
+      disableEnforceFocus
     >
       <DialogTitle id="confirm-title">{title}</DialogTitle>
       {message ? (
