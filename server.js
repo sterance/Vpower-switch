@@ -209,7 +209,10 @@ async function scanNetwork() {
     // check each device for os type
     for (const device of devices) {
       try {
+        console.log(`[scan] Checking device ${device.ip} (${device.mac})`);
         const os = await detectOS(device.ip);
+        console.log(`[scan] Device ${device.ip} detected as: ${os}`);
+        
         if (os !== 'unknown') {
           // try to get hostname
           let hostname = null;
@@ -223,14 +226,18 @@ async function scanNetwork() {
             // hostname resolution failed
           }
           
+          console.log(`[scan] Adding device ${device.ip} to results: ${os} (hostname: ${hostname || 'unknown'})`);
           results.push({
             ip: device.ip,
             mac: device.mac,
             hostname: hostname,
             os: os
           });
+        } else {
+          console.log(`[scan] Skipping device ${device.ip} - OS detection failed`);
         }
       } catch (e) {
+        console.log(`[scan] Error checking device ${device.ip}:`, e.message);
         // device check failed, skip
       }
     }
@@ -243,20 +250,51 @@ async function scanNetwork() {
   }
 }
 
-// detect operating system by checking specific ports
+// detect operating system by checking multiple ports and services
 async function detectOS(ip) {
-  // check for windows (smb port 445)
-  const hasWindowsPort = await checkPort(ip, 445, 1000);
-  if (hasWindowsPort) {
-    return 'windows';
-  }
+  console.log(`[detectOS] Starting OS detection for ${ip}`);
   
-  // check for linux (ssh port 22)
-  const hasLinuxPort = await checkPort(ip, 22, 1000);
-  if (hasLinuxPort) {
+  // check multiple ports to better distinguish between OS types
+  const portChecks = await Promise.all([
+    checkPort(ip, 22, 2000),   // SSH (Linux/Unix)
+    checkPort(ip, 445, 2000),  // SMB (Windows/Linux with Samba)
+    checkPort(ip, 135, 2000),  // RPC (Windows)
+    checkPort(ip, 139, 2000),  // NetBIOS (Windows)
+    checkPort(ip, 3389, 2000), // RDP (Windows)
+    checkPort(ip, 80, 2000),   // HTTP (both, but helps with detection)
+    checkPort(ip, 443, 2000)   // HTTPS (both, but helps with detection)
+  ]);
+  
+  const [ssh, smb, rpc, netbios, rdp, http, https] = portChecks;
+  
+  console.log(`[detectOS] Port scan results for ${ip}: SSH:${ssh}, SMB:${smb}, RPC:${rpc}, NetBIOS:${netbios}, RDP:${rdp}, HTTP:${http}, HTTPS:${https}`);
+  
+  // windows detection: look for windows-specific ports
+  const windowsPorts = [rpc, netbios, rdp];
+  const windowsScore = windowsPorts.filter(Boolean).length;
+  
+  // linux detection: prioritize SSH, but also consider if SMB is present without windows ports
+  const linuxScore = ssh ? 1 : 0;
+  const hasSambaOnly = smb && !rpc && !netbios && !rdp;
+  
+  console.log(`[detectOS] Detection scores for ${ip}: Windows:${windowsScore}, Linux:${linuxScore}, SambaOnly:${hasSambaOnly}`);
+  
+  // decision logic:
+  // 1. If windows-specific ports are open, it's likely Windows
+  // 2. If SSH is open and no windows-specific ports, it's likely Linux
+  // 3. If only SMB is open (no windows ports), it could be Linux with Samba
+  if (windowsScore > 0) {
+    console.log(`[detectOS] Detected Windows for ${ip} (windows-specific ports found)`);
+    return 'windows';
+  } else if (ssh) {
+    console.log(`[detectOS] Detected Linux for ${ip} (SSH port open)`);
+    return 'linux';
+  } else if (hasSambaOnly) {
+    console.log(`[detectOS] Detected Linux for ${ip} (Samba only, no Windows ports)`);
     return 'linux';
   }
   
+  console.log(`[detectOS] Could not detect OS for ${ip} (no recognizable service ports)`);
   return 'unknown';
 }
 
