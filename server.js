@@ -269,29 +269,29 @@ async function detectOS(ip) {
   
   console.log(`[detectOS] Port scan results for ${ip}: SSH:${ssh}, SMB:${smb}, RPC:${rpc}, NetBIOS:${netbios}, RDP:${rdp}, HTTP:${http}, HTTPS:${https}`);
   
-  // windows detection: look for windows-specific ports
-  const windowsPorts = [rpc, netbios, rdp];
-  const windowsScore = windowsPorts.filter(Boolean).length;
+  // decision logic (prioritized):
+  // 1. SSH + no RPC = almost certainly Linux (SSH is rare on Windows)
+  // 2. RPC present = definitely Windows (MSRPC port 135 is Windows-specific)
+  // 3. RDP + no SSH = Windows
+  // 4. Only SMB/NetBIOS + no SSH = might be Windows or NAS
+  // 5. SMB + SSH = Linux with Samba
   
-  // linux detection: prioritize SSH, but also consider if SMB is present without windows ports
-  const linuxScore = ssh ? 1 : 0;
-  const hasSambaOnly = smb && !rpc && !netbios && !rdp;
-  
-  console.log(`[detectOS] Detection scores for ${ip}: Windows:${windowsScore}, Linux:${linuxScore}, SambaOnly:${hasSambaOnly}`);
-  
-  // decision logic:
-  // 1. If windows-specific ports are open, it's likely Windows
-  // 2. If SSH is open and no windows-specific ports, it's likely Linux
-  // 3. If only SMB is open (no windows ports), it could be Linux with Samba
-  if (windowsScore > 0) {
-    console.log(`[detectOS] Detected Windows for ${ip} (windows-specific ports found)`);
+  if (ssh && !rpc) {
+    // SSH without Windows RPC is a strong Linux indicator
+    console.log(`[detectOS] Detected Linux for ${ip} (SSH present, no Windows RPC)`);
+    return 'linux';
+  } else if (rpc) {
+    // RPC port 135 is definitively Windows
+    console.log(`[detectOS] Detected Windows for ${ip} (Windows RPC port 135 detected)`);
     return 'windows';
-  } else if (ssh) {
-    console.log(`[detectOS] Detected Linux for ${ip} (SSH port open)`);
-    return 'linux';
-  } else if (hasSambaOnly) {
-    console.log(`[detectOS] Detected Linux for ${ip} (Samba only, no Windows ports)`);
-    return 'linux';
+  } else if (rdp && !ssh) {
+    // RDP without SSH is Windows
+    console.log(`[detectOS] Detected Windows for ${ip} (RDP present, no SSH)`);
+    return 'windows';
+  } else if (smb || netbios) {
+    // SMB or NetBIOS without SSH could be Windows or NAS, assume Windows
+    console.log(`[detectOS] Detected Windows for ${ip} (SMB/NetBIOS present, no SSH)`);
+    return 'windows';
   }
   
   console.log(`[detectOS] Could not detect OS for ${ip} (no recognizable service ports)`);

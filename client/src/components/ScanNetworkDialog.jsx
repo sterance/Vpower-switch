@@ -22,7 +22,7 @@ function ScanNetworkDialog({ open, onClose, onSelect }) {
       const res = await client.get('/scan')
       setDevices(res.data || [])
       if (!res.data || res.data.length === 0) {
-        setError('No windows machines found on network')
+        setError('No machines found on network')
       }
     } catch (e) {
       setError('Failed to scan network')
@@ -44,7 +44,7 @@ function ScanNetworkDialog({ open, onClose, onSelect }) {
           <Stack alignItems="center" spacing={2} sx={{ py: 4 }}>
             <CircularProgress />
             <Typography variant="body2" color="text.secondary">
-              Scanning local network for windows machines...
+              Scanning local network for machines...
             </Typography>
           </Stack>
         )}
