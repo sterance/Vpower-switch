@@ -45,12 +45,25 @@ function MachinesPanel({ onNotify, refreshKey = 0, openAddKey = 0, onRefresh }) 
   const handleAdd = async (payload) => {
     setSubmitting(true)
     try {
+      console.log('Submitting new machine:', payload);
       const res = await client.post('/machines', payload)
       setRows(prev => [...prev, res.data])
       setOpenAdd(false)
       onNotify?.('machine added', 'success')
     } catch (e) {
-      onNotify?.('failed to add machine', 'error')
+      console.error('Failed to add machine. Full error response:', e.response?.data || e.message);
+      const errorMsg = e.response?.data?.error || 'failed to add machine';
+      const details = e.response?.data?.details || '';
+      const missing = e.response?.data?.missing;
+      
+      let fullMessage = errorMsg;
+      if (missing && missing.length > 0) {
+        fullMessage += ` (Missing: ${missing.join(', ')})`;
+      } else if (details) {
+        fullMessage += ` (${details})`;
+      }
+      
+      onNotify?.(fullMessage, 'error');
     } finally {
       setSubmitting(false)
     }

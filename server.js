@@ -172,7 +172,7 @@ function shutdownMachine(ip, username, os) {
   });
 }
 
-// scan local network for windows machines
+// scan local network for machines
 async function scanNetwork() {
   try {
     console.log('[scan] starting network scan...');
@@ -299,34 +299,39 @@ app.get('/api/machines', async (req, res) => {
 
 app.post('/api/machines', async (req, res) => {
   try {
-    const { name, mac, ip, sshUser, os } = req.body;
+    console.log(`[api] POST /api/machines - Received request body:`, JSON.stringify(req.body, null, 2));
+    const { name, mac, ip, sshUser } = req.body;
 
     const nameT = (name ?? '').trim();
     const macT = (mac ?? '').trim();
     const ipT = (ip ?? '').trim();
     const sshUserT = (sshUser ?? '').trim();
-    const osT = (os ?? '').trim();
 
     const missing = [];
     if (!nameT) missing.push('name');
     if (!macT) missing.push('mac');
     if (!ipT) missing.push('ip');
     if (!sshUserT) missing.push('sshUser');
-    if (!osT) missing.push('os');
 
     if (missing.length > 0) {
+      console.error(`[api] POST /api/machines - Validation failed: missing required fields. Missing: [${missing.join(', ')}]`);
       return res.status(400).json({ error: 'missing required fields', missing });
     }
     
-    // validate os type (extensible for future os types)
-    const validOsTypes = ['windows', 'linux'];
-    if (!validOsTypes.includes(osT)) {
+    // detect os by checking ports
+    console.log(`[api] POST /api/machines - Detecting OS for IP: ${ipT}`);
+    const detectedOS = await detectOS(ipT);
+    
+    if (detectedOS === 'unknown') {
+      console.error(`[api] POST /api/machines - OS detection failed for ${ipT}`);
       return res.status(400).json({ 
-        error: 'invalid os type', 
-        provided: osT,
-        supported: validOsTypes 
+        error: 'failed to detect supported OS', 
+        details: 'machine not found or not running Windows (port 445) or Linux (port 22)',
+        ip: ipT
       });
     }
+    
+    console.log(`[api] POST /api/machines - Detected OS: ${detectedOS} for IP: ${ipT}`);
     
     const machines = await loadMachines();
     const newMachine = {
@@ -335,16 +340,17 @@ app.post('/api/machines', async (req, res) => {
       mac: macT,
       ip: ipT,
       sshUser: sshUserT,
-      os: osT
+      os: detectedOS
     };
     
     machines.push(newMachine);
     await saveMachines(machines);
     
+    console.log(`[api] POST /api/machines - Successfully added new machine: ${newMachine.name} (ID: ${newMachine.id}) with OS: ${detectedOS}`);
     res.json(newMachine);
   } catch (error) {
-    console.error('error adding machine:', error);
-    res.status(500).json({ error: 'failed to add machine' });
+    console.error('[api] POST /api/machines - Internal server error:', error);
+    res.status(500).json({ error: 'failed to add machine', details: error?.message || String(error) });
   }
 });
 
