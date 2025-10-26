@@ -74,9 +74,9 @@ These steps are for the machine that will host the web application.
 
 ---
 
-## Part 2: Target PC Setup (Windows 11)
+## Part 2A: Target PC Setup (Windows)
 
-These steps must be run on **each** Windows 11 PC you want to control. You must **run all PowerShell commands in an Administrator terminal**.
+These steps must be run on **each** Windows PC you want to control. You must **run all PowerShell commands in an Administrator terminal**.
 
 ### 1. Network Configuration
 
@@ -135,7 +135,15 @@ These steps must be run on **each** Windows 11 PC you want to control. You must 
     # Paste the public key you copied from Part 1 inside the quotes
     $PublicKey = "PASTE_YOUR_ssh-ed25519_PUBLIC_KEY_HERE"
     
-    Add-Content -Path $AuthKeysFile -Value $PublicKey
+    $ExistingContent = Get-Content -Path $AuthKeysFile -Raw
+    if ($ExistingContent -and $ExistingContent.Trim() -ne "") {
+      # File has existing content, add new key on a new line
+      Add-Content -Path $AuthKeysFile -Value ""
+      Add-Content -Path $AuthKeysFile -Value $PublicKey
+    } else {
+      # File is empty, add the key directly
+      Add-Content -Path $AuthKeysFile -Value $PublicKey
+    }
     
     # Restart the SSH service to apply the new key
     Restart-Service -Name sshd
@@ -147,6 +155,155 @@ This allows the server to ping the PC to see if it's online.
 ```powershell
 Enable-NetFirewallRule -DisplayName "File and Printer Sharing (Echo Request - ICMPv4-In)"
 ```
+
+---
+
+## Part 2B: Target PC Setup (Linux)
+
+These steps must be run on **each** Linux PC you want to control. You must **run all commands with appropriate privileges** (sudo when required).
+
+### 1. Network Configuration
+
+1.  **Get Network Info:**
+    Identify your primary *wired* network adapter and note its MAC address.
+    ```bash
+    # Modern systems (preferred)
+    ip addr show
+    
+    # Alternative for older systems
+    ifconfig
+    ```
+    Look for your ethernet interface (usually `eth0`, `enp0s3`, etc.) and note the MAC address.
+
+2.  **Set Static IP:**
+    This is required for the app to find your PC.
+    * **Recommended:** Log in to your router and set a **DHCP Reservation** for the MAC address you just found.
+    * **Alternative:** Manually configure static IP using your distribution's network manager.
+
+### 2. Configure Power On (Wake-on-LAN)
+
+1.  **Enable WoL in BIOS/UEFI (Manual):**
+    * Restart the PC and enter the BIOS/UEFI setup (usually `Del` or `F2`).
+    * Find and **Enable** the "Wake on LAN" or "Power on by PCIe/LAN" setting.
+    * Save and exit.
+
+2.  **Enable WoL in Linux:**
+    Replace `eth0` with your network interface name from Step 1.
+    ```bash
+    # Enable WoL for the interface
+    sudo ethtool -s eth0 wol g
+    
+    # Verify WoL is enabled
+    sudo ethtool eth0 | grep Wake-on
+    ```
+    You should see `Wake-on: g` in the output.
+
+3.  **Make WoL Persistent:**
+    Create a systemd service to ensure WoL stays enabled after reboots.
+    ```bash
+    # Create the service file
+    sudo nano /etc/systemd/system/wol-enable.service
+    ```
+    
+    Add the following content (replace `eth0` with your interface name):
+    ```ini
+    [Unit]
+    Description=Enable Wake-on-LAN
+    After=network.target
+    
+    [Service]
+    Type=oneshot
+    ExecStart=/sbin/ethtool -s eth0 wol g
+    RemainAfterExit=yes
+    
+    [Install]
+    WantedBy=multi-user.target
+    ```
+    
+    Enable and start the service:
+    ```bash
+    sudo systemctl enable wol-enable.service
+    sudo systemctl start wol-enable.service
+    ```
+
+### 3. Configure Power Off (SSH Server)
+
+1.  **Install OpenSSH Server:**
+    ```bash
+    # Ubuntu/Debian
+    sudo apt update && sudo apt install openssh-server
+    
+    # CentOS/RHEL/Fedora
+    sudo yum install openssh-server
+    # or on newer versions:
+    sudo dnf install openssh-server
+    
+    # Arch Linux
+    sudo pacman -S openssh
+    ```
+
+2.  **Start and Enable SSH Service:**
+    ```bash
+    sudo systemctl start ssh
+    sudo systemctl enable ssh
+    ```
+
+3.  **Authorize your Server's SSH Key:**
+    This grants your server access to run the shutdown command.
+    ```bash
+    # Create .ssh directory if it doesn't exist
+    mkdir -p ~/.ssh
+    chmod 700 ~/.ssh
+    
+    # Add the public key to authorized_keys
+    echo "PASTE_YOUR_ssh-ed25519_PUBLIC_KEY_HERE" >> ~/.ssh/authorized_keys
+    chmod 600 ~/.ssh/authorized_keys
+    ```
+
+4.  **Configure Passwordless Sudo for Shutdown:**
+    Create a sudoers file to allow the SSH user to run shutdown without a password.
+    ```bash
+    # Create sudoers file for vpower-shutdown
+    sudo nano /etc/sudoers.d/vpower-shutdown
+    ```
+    
+    Add the following line (replace `your_username` with your actual username):
+    ```bash
+    your_username ALL=(ALL) NOPASSWD: /sbin/shutdown
+    ```
+    
+    Verify the syntax is correct:
+    ```bash
+    sudo visudo -c -f /etc/sudoers.d/vpower-shutdown
+    ```
+
+### 4. Configure Status Check (Firewall)
+
+This allows the server to ping the PC to see if it's online.
+
+1.  **Allow ICMP (ping) through firewall:**
+    ```bash
+    # Ubuntu/Debian (ufw)
+    sudo ufw allow from any to any proto icmp
+    
+    # CentOS/RHEL/Fedora (firewalld)
+    sudo firewall-cmd --permanent --add-icmp-block-inversion
+    sudo firewall-cmd --permanent --add-icmp-block=echo-request
+    sudo firewall-cmd --reload
+    
+    # Alternative: iptables (if not using ufw/firewalld)
+    sudo iptables -A INPUT -p icmp --icmp-type echo-request -j ACCEPT
+    ```
+
+2.  **Ensure SSH port 22 is open:**
+    ```bash
+    # Ubuntu/Debian (ufw)
+    sudo ufw allow 22/tcp
+    
+    # CentOS/RHEL/Fedora (firewalld)
+    sudo firewall-cmd --permanent --add-service=ssh
+    sudo firewall-cmd --reload
+    ```
 
 ---
 
@@ -237,9 +394,9 @@ sudo systemctl restart vpower-switch.service
 2.  Click the large **Add** icon in the toolbar.
 3.  Fill in the details for your target PC:
     * **Custom Name:** Any name (e.g., "Gaming PC").
-    * **MAC Address:** The `MacAddress` from Part 2 (e.g., `AA-BB-CC-DD-EE-FF`).
-    * **IP Address:** The static IP from Part 2 (e.g., `192.168.1.100`).
-    * **SSH Username:** Your Windows **administrator** username.
+    * **MAC Address:** The MAC address from Part 2A or 2B (e.g., `AA-BB-CC-DD-EE-FF`).
+    * **IP Address:** The static IP from Part 2A or 2B (e.g., `192.168.1.100`).
+    * **SSH Username:** Your Windows **administrator** username (Part 2A) or Linux username (Part 2B).
 4.  Click **add**.
 
 Your new machine card will appear and should now be fully controllable.
