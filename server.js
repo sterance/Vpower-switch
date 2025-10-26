@@ -16,6 +16,39 @@ const PORT = process.env.BACKEND_PORT || 3000;
 const MACHINES_FILE = path.join(__dirname, 'machines.json');
 const SSH_PRIVATE_KEY_PATH = process.env.SSH_KEY_PATH;
 
+// validate ssh configuration at startup
+function validateSSHConfig() {
+  if (!SSH_PRIVATE_KEY_PATH) {
+    console.warn('[startup] SSH_KEY_PATH not configured - shutdown will not work');
+    return;
+  }
+  
+  try {
+    const fs = require('fs');
+    const stats = fs.statSync(SSH_PRIVATE_KEY_PATH);
+    console.log(`[startup] SSH key found: ${SSH_PRIVATE_KEY_PATH} (${stats.size} bytes)`);
+    
+    // check file permissions (should be 600)
+    const mode = stats.mode & parseInt('777', 8);
+    if (mode !== parseInt('600', 8)) {
+      console.warn(`[startup] SSH key permissions are ${mode.toString(8)} (should be 600)`);
+    }
+    
+    // try to read the key to validate format
+    const keyContent = fs.readFileSync(SSH_PRIVATE_KEY_PATH, 'utf8');
+    if (!keyContent.includes('BEGIN') || !keyContent.includes('PRIVATE KEY')) {
+      console.warn('[startup] SSH key format may be invalid - missing PEM headers');
+    } else {
+      console.log('[startup] SSH key format appears valid');
+    }
+  } catch (error) {
+    console.error(`[startup] SSH key validation failed: ${error.message}`);
+  }
+}
+
+// validate ssh config on startup
+validateSSHConfig();
+
 // middleware
 app.use(express.json());
 
@@ -154,6 +187,19 @@ function shutdownMachine(ip, username, os) {
     
     conn.on('error', (err) => {
       console.error(`[poweroff] ssh connection error for ${ip}:`, err);
+      
+      if (err.message.includes('All configured authentication methods failed')) {
+        console.error(`[poweroff] Authentication failed for ${ip}. Possible causes:`);
+        console.error(`[poweroff] - SSH key not authorized on target machine`);
+        console.error(`[poweroff] - Wrong username (trying: ${username})`);
+        console.error(`[poweroff] - SSH server not running or not configured`);
+        console.error(`[poweroff] - Key format incompatible with target SSH server`);
+      } else if (err.message.includes('ECONNREFUSED')) {
+        console.error(`[poweroff] Connection refused to ${ip}:22 - SSH server may not be running`);
+      } else if (err.message.includes('ETIMEDOUT')) {
+        console.error(`[poweroff] Connection timeout to ${ip}:22 - network or firewall issue`);
+      }
+      
       reject(err);
     });
     
@@ -164,11 +210,40 @@ function shutdownMachine(ip, username, os) {
     }
 
     console.log(`[poweroff] connecting via ssh to ${ip}...`);
-    conn.connect({
+    
+    let privateKey;
+    try {
+      // first try reading as utf8 (most common)
+      privateKey = require('fs').readFileSync(SSH_PRIVATE_KEY_PATH, 'utf8');
+      console.log(`[poweroff] read SSH key as UTF8 for ${ip}`);
+    } catch (error) {
+      try {
+        // fallback to binary reading
+        privateKey = require('fs').readFileSync(SSH_PRIVATE_KEY_PATH);
+        console.log(`[poweroff] read SSH key as binary for ${ip}`);
+      } catch (fallbackError) {
+        console.error(`[poweroff] failed to read SSH key for ${ip}:`, fallbackError.message);
+        reject(new Error(`cannot read SSH key: ${fallbackError.message}`));
+        return;
+      }
+    }
+    
+    // add debug logging and connection options for better compatibility
+    const connectionOptions = {
       host: ip,
       username: username,
-      privateKey: require('fs').readFileSync(SSH_PRIVATE_KEY_PATH)
-    });
+      privateKey: privateKey,
+      debug: (info) => console.log(`[poweroff] ssh debug for ${ip}:`, info),
+      algorithms: {
+        serverHostKey: ['ssh-rsa', 'ssh-ed25519', 'ecdsa-sha2-nistp256'],
+        kex: ['diffie-hellman-group14-sha256', 'diffie-hellman-group14-sha1'],
+        cipher: ['aes128-ctr', 'aes192-ctr', 'aes256-ctr']
+      },
+      readyTimeout: 20000,
+      keepaliveInterval: 10000
+    };
+    
+    conn.connect(connectionOptions);
   });
 }
 
