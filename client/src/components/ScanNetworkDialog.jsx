@@ -32,8 +32,11 @@ function ScanNetworkDialog({ open, onClose, onSelect }) {
   }
 
   const handleSelect = (device) => {
-    onSelect(device)
-    onClose()
+    // use setTimeout to ensure proper focus management
+    setTimeout(() => {
+      onSelect(device)
+      onClose()
+    }, 0)
   }
 
   const renderOSIcon = (os) => {
@@ -61,6 +64,7 @@ function ScanNetworkDialog({ open, onClose, onSelect }) {
       maxWidth="sm" 
       fullWidth
       disableEnforceFocus
+      disableRestoreFocus
     >
       <DialogTitle>Scan network</DialogTitle>
       <DialogContent>

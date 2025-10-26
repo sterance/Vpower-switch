@@ -44,6 +44,7 @@ function AddMachineDialog({ open, onClose, onSubmit, submitting = false }) {
         onClose={onClose} 
         slotProps={{ transition: { onExited: handleExited } }}
         disableEnforceFocus
+        disableRestoreFocus
       >
         <DialogTitle>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
