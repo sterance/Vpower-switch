@@ -5,6 +5,7 @@ import DeleteIcon from '@mui/icons-material/Delete'
 import VisibilityIcon from '@mui/icons-material/Visibility'
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
 import client from '../api/client'
+import ConfirmDialog from './ConfirmDialog'
 
 function MachineCard({ machine, onDeleted, onNotify }) {
   const [statusLoading, setStatusLoading] = useState(false)
@@ -14,6 +15,7 @@ function MachineCard({ machine, onDeleted, onNotify }) {
   const [showMac, setShowMac] = useState(false)
   const [showIp, setShowIp] = useState(false)
   const [showSsh, setShowSsh] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
 
   const fetchStatus = useCallback(async ({ silent } = { silent: false }) => {
     try {
@@ -51,18 +53,21 @@ function MachineCard({ machine, onDeleted, onNotify }) {
     }
   }
 
-  const handleDelete = async () => {
-    if (window.confirm(`Are you sure you want to delete ${machine.name}?`)) {
-      try {
-        setDeleting(true)
-        await client.delete(`/machines/${machine.id}`)
-        onNotify?.('machine deleted successfully', 'success')
-        onDeleted?.(machine.id)
-      } catch (e) {
-        onNotify?.('failed to delete machine', 'error')
-      } finally {
-        setDeleting(false)
-      }
+  const handleDelete = () => {
+    setConfirmDelete(true)
+  }
+
+  const confirmDeleteAction = async () => {
+    try {
+      setDeleting(true)
+      await client.delete(`/machines/${machine.id}`)
+      onNotify?.('machine deleted successfully', 'success')
+      onDeleted?.(machine.id)
+    } catch (e) {
+      onNotify?.('failed to delete machine', 'error')
+    } finally {
+      setDeleting(false)
+      setConfirmDelete(false)
     }
   }
 
@@ -144,6 +149,15 @@ function MachineCard({ machine, onDeleted, onNotify }) {
           </span>
         </Tooltip>
       </Box>
+      <ConfirmDialog
+        open={confirmDelete}
+        title="Delete Machine"
+        message={`Are you sure you want to delete ${machine.name}?`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        onClose={() => setConfirmDelete(false)}
+        onConfirm={confirmDeleteAction}
+      />
     </Card>
   )
 }
