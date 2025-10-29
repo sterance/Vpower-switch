@@ -2,12 +2,14 @@ import { useEffect, useState, useCallback } from 'react'
 import { Card, CardContent, Typography, Box, Stack, Tooltip, Fade, Chip, Switch, IconButton } from '@mui/material'
 import PowerSettingsNewIcon from '@mui/icons-material/PowerSettingsNew'
 import DeleteIcon from '@mui/icons-material/Delete'
+import EditIcon from '@mui/icons-material/Edit'
 import VisibilityIcon from '@mui/icons-material/Visibility'
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
 import client from '../api/client'
 import ConfirmDialog from './ConfirmDialog'
+import AddMachineDialog from './AddMachineDialog'
 
-function MachineCard({ machine, onDeleted, onNotify }) {
+function MachineCard({ machine, onDeleted, onNotify, onEdited }) {
   const [statusLoading, setStatusLoading] = useState(false)
   const [isOnline, setIsOnline] = useState(false)
   const [toggling, setToggling] = useState(false)
@@ -16,6 +18,7 @@ function MachineCard({ machine, onDeleted, onNotify }) {
   const [showIp, setShowIp] = useState(false)
   const [showSsh, setShowSsh] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [editOpen, setEditOpen] = useState(false)
 
   const fetchStatus = useCallback(async ({ silent } = { silent: false }) => {
     try {
@@ -55,6 +58,10 @@ function MachineCard({ machine, onDeleted, onNotify }) {
 
   const handleDelete = () => {
     setConfirmDelete(true)
+  }
+
+  const handleEdit = () => {
+    setEditOpen(true)
   }
 
   const confirmDeleteAction = async () => {
@@ -135,6 +142,18 @@ function MachineCard({ machine, onDeleted, onNotify }) {
         </Stack>
       </CardContent>
       <Box sx={{ position: 'absolute', bottom: '1rem', right: '1rem', display: 'flex', alignItems: 'center', gap: 1 }}>
+        <Tooltip slots={{ transition: Fade }} title="Edit">
+          <span>
+            <IconButton
+              size="large"
+              onClick={handleEdit}
+              aria-label="edit machine"
+              sx={{ transform: 'scale(1.5)' }}
+            >
+              <EditIcon fontSize="inherit" />
+            </IconButton>
+          </span>
+        </Tooltip>
         <Tooltip slots={{ transition: Fade }} title="Delete">
           <span>
             <IconButton
@@ -157,6 +176,12 @@ function MachineCard({ machine, onDeleted, onNotify }) {
         cancelText="Cancel"
         onClose={() => setConfirmDelete(false)}
         onConfirm={confirmDeleteAction}
+      />
+      <AddMachineDialog
+        open={editOpen}
+        onClose={() => setEditOpen(false)}
+        onSubmit={onEdited}
+        machine={machine}
       />
     </Card>
   )

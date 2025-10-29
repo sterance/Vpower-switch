@@ -1,16 +1,27 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, Stack, IconButton, Box } from '@mui/material'
 import NetworkCheckIcon from '@mui/icons-material/NetworkCheck'
 import ScanNetworkDialog from './ScanNetworkDialog'
 
-function AddMachineDialog({ open, onClose, onSubmit, submitting = false }) {
+function AddMachineDialog({ open, onClose, onSubmit, submitting = false, machine = null }) {
   const [name, setName] = useState('')
   const [mac, setMac] = useState('')
   const [ip, setIp] = useState('')
   const [sshUser, setSshUser] = useState('')
   const [scanOpen, setScanOpen] = useState(false)
 
+  const isEditMode = Boolean(machine)
   const canSubmit = name && mac && ip && sshUser
+
+  // populate fields when editing
+  useEffect(() => {
+    if (machine && open) {
+      setName(machine.name || '')
+      setMac(machine.mac || '')
+      setIp(machine.ip || '')
+      setSshUser(machine.sshUser || '')
+    }
+  }, [machine, open])
 
   const handleScanSelect = (device) => {
     setIp(device.ip)
@@ -48,10 +59,12 @@ function AddMachineDialog({ open, onClose, onSubmit, submitting = false }) {
       >
         <DialogTitle>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            Add machine
-            <IconButton onClick={() => setScanOpen(true)} color="primary" aria-label="scan network">
-              <NetworkCheckIcon />
-            </IconButton>
+            {isEditMode ? 'Edit machine' : 'Add machine'}
+            {!isEditMode && (
+              <IconButton onClick={() => setScanOpen(true)} color="primary" aria-label="scan network">
+                <NetworkCheckIcon />
+              </IconButton>
+            )}
           </Box>
         </DialogTitle>
         <DialogContent>
@@ -64,7 +77,9 @@ function AddMachineDialog({ open, onClose, onSubmit, submitting = false }) {
         </DialogContent>
         <DialogActions>
           <Button onClick={onClose}>cancel</Button>
-          <Button variant="contained" onClick={handleSubmit} disabled={!canSubmit || submitting}>add</Button>
+          <Button variant="contained" onClick={handleSubmit} disabled={!canSubmit || submitting}>
+            {isEditMode ? 'update' : 'add'}
+          </Button>
         </DialogActions>
       </Dialog>
       <ScanNetworkDialog

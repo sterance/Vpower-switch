@@ -73,6 +73,36 @@ function MachinesPanel({ onNotify, refreshKey = 0, openAddKey = 0, onRefresh }) 
     setRows(prev => prev.filter(r => r.id !== id))
   }
 
+  const handleEdit = async (payload) => {
+    setSubmitting(true)
+    try {
+      console.log('Updating machine:', payload);
+      const res = await client.put(`/machines/${payload.id}`, payload)
+      setRows(prev => prev.map(r => r.id === payload.id ? res.data : r))
+      onNotify?.('machine updated', 'success')
+    } catch (e) {
+      console.error('Failed to update machine. Full error response:', e.response?.data || e.message);
+      const errorMsg = e.response?.data?.error || 'failed to update machine';
+      const details = e.response?.data?.details || '';
+      const missing = e.response?.data?.missing;
+      
+      let fullMessage = errorMsg;
+      if (missing && missing.length > 0) {
+        fullMessage += ` (Missing: ${missing.join(', ')})`;
+      } else if (details) {
+        fullMessage += ` (${details})`;
+      }
+      
+      onNotify?.(fullMessage, 'error');
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleEdited = (machineId) => (payload) => {
+    handleEdit({ ...payload, id: machineId })
+  }
+
   const content = useMemo(() => {
     if (loading) {
       return (
@@ -115,7 +145,7 @@ function MachinesPanel({ onNotify, refreshKey = 0, openAddKey = 0, onRefresh }) 
               }
             }}
           >
-            <MachineCard machine={row} onDeleted={handleDeleted} onNotify={onNotify} />
+            <MachineCard machine={row} onDeleted={handleDeleted} onNotify={onNotify} onEdited={handleEdited(row.id)} />
           </Box>
         ))}
       </Box>

@@ -467,6 +467,71 @@ app.post('/api/machines', async (req, res) => {
   }
 });
 
+app.put('/api/machines/:id', async (req, res) => {
+  try {
+    console.log(`[api] PUT /api/machines/${req.params.id} - Received request body:`, JSON.stringify(req.body, null, 2));
+    const { id } = req.params;
+    const { name, mac, ip, sshUser } = req.body;
+
+    const nameT = (name ?? '').trim();
+    const macT = (mac ?? '').trim();
+    const ipT = (ip ?? '').trim();
+    const sshUserT = (sshUser ?? '').trim();
+
+    const missing = [];
+    if (!nameT) missing.push('name');
+    if (!macT) missing.push('mac');
+    if (!ipT) missing.push('ip');
+    if (!sshUserT) missing.push('sshUser');
+
+    if (missing.length > 0) {
+      console.error(`[api] PUT /api/machines/${id} - Validation failed: missing required fields. Missing: [${missing.join(', ')}]`);
+      return res.status(400).json({ error: 'missing required fields', missing });
+    }
+
+    const machines = await loadMachines();
+    const machineIndex = machines.findIndex(m => m.id === id);
+    
+    if (machineIndex === -1) {
+      return res.status(404).json({ error: 'machine not found' });
+    }
+
+    // detect os by checking ports
+    console.log(`[api] PUT /api/machines/${id} - Detecting OS for IP: ${ipT}`);
+    const detectedOS = await detectOS(ipT);
+    
+    if (detectedOS === 'unknown') {
+      console.error(`[api] PUT /api/machines/${id} - OS detection failed for ${ipT}`);
+      return res.status(400).json({ 
+        error: 'failed to detect supported OS', 
+        details: 'machine not found or not running Windows (port 445) or Linux (port 22)',
+        ip: ipT
+      });
+    }
+
+    console.log(`[api] PUT /api/machines/${id} - Detected OS: ${detectedOS} for IP: ${ipT}`);
+
+    // update machine
+    const updatedMachine = {
+      ...machines[machineIndex],
+      name: nameT,
+      mac: macT,
+      ip: ipT,
+      sshUser: sshUserT,
+      os: detectedOS
+    };
+
+    machines[machineIndex] = updatedMachine;
+    await saveMachines(machines);
+    
+    console.log(`[api] PUT /api/machines/${id} - Successfully updated machine: ${updatedMachine.name} (ID: ${updatedMachine.id}) with OS: ${detectedOS}`);
+    res.json(updatedMachine);
+  } catch (error) {
+    console.error(`[api] PUT /api/machines/${req.params.id} - Internal server error:`, error);
+    res.status(500).json({ error: 'failed to update machine', details: error?.message || String(error) });
+  }
+});
+
 app.delete('/api/machines/:id', async (req, res) => {
   try {
     const { id } = req.params;
