@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { Card, CardContent, Typography, Box, Stack, Tooltip, Fade, Chip, Switch, IconButton } from '@mui/material'
+import { Card, CardContent, Typography, Box, Stack, Tooltip, Fade, Chip, Switch, IconButton, Menu, MenuItem } from '@mui/material'
 import PowerSettingsNewIcon from '@mui/icons-material/PowerSettingsNew'
 import DeleteIcon from '@mui/icons-material/Delete'
 import EditIcon from '@mui/icons-material/Edit'
@@ -19,6 +19,8 @@ function MachineCard({ machine, onDeleted, onNotify, onEdited }) {
   const [showSsh, setShowSsh] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
+  const [contextMenu, setContextMenu] = useState(null)
+  const [longPressTimer, setLongPressTimer] = useState(null)
 
   const fetchStatus = useCallback(async ({ silent } = { silent: false }) => {
     try {
@@ -64,6 +66,47 @@ function MachineCard({ machine, onDeleted, onNotify, onEdited }) {
     setEditOpen(true)
   }
 
+  const handleContextMenu = (event) => {
+    event.preventDefault()
+    setContextMenu({
+      mouseX: event.clientX + 2,
+      mouseY: event.clientY - 6,
+    })
+  }
+
+  const handleCloseContextMenu = () => {
+    setContextMenu(null)
+  }
+
+  const handleTouchStart = (event) => {
+    const timer = setTimeout(() => {
+      setContextMenu({
+        mouseX: event.touches[0].clientX + 2,
+        mouseY: event.touches[0].clientY - 6,
+      })
+    }, 500)
+    setLongPressTimer(timer)
+  }
+
+  const handleTouchEnd = () => {
+    if (longPressTimer) {
+      clearTimeout(longPressTimer)
+      setLongPressTimer(null)
+    }
+  }
+
+  const handleTouchMove = () => {
+    if (longPressTimer) {
+      clearTimeout(longPressTimer)
+      setLongPressTimer(null)
+    }
+  }
+
+  const handleRestart = () => {
+    onNotify?.('restart functionality not yet implemented', 'info')
+    handleCloseContextMenu()
+  }
+
   const confirmDeleteAction = async () => {
     try {
       setDeleting(true)
@@ -87,7 +130,13 @@ function MachineCard({ machine, onDeleted, onNotify, onEdited }) {
       <Box sx={{ position: 'absolute', top: '1.5rem', right: '1.9rem', display: 'flex', alignItems: 'center', gap: 3 }}>
         <Tooltip slots={{ transition: Fade }} title={isOnline ? 'turn off' : 'turn on'}>
           <span>
-            <Box sx={{ display: 'inline-block', p: 0.5 }}>
+            <Box 
+              sx={{ display: 'inline-block', p: 0.5 }}
+              onContextMenu={handleContextMenu}
+              onTouchStart={handleTouchStart}
+              onTouchEnd={handleTouchEnd}
+              onTouchMove={handleTouchMove}
+            >
               <Switch
                 size="small"
                 checked={isOnline}
@@ -183,6 +232,18 @@ function MachineCard({ machine, onDeleted, onNotify, onEdited }) {
         onSubmit={onEdited}
         machine={machine}
       />
+      <Menu
+        open={contextMenu !== null}
+        onClose={handleCloseContextMenu}
+        anchorReference="anchorPosition"
+        anchorPosition={
+          contextMenu !== null
+            ? { top: contextMenu.mouseY, left: contextMenu.mouseX }
+            : undefined
+        }
+      >
+        <MenuItem onClick={handleRestart}>Restart</MenuItem>
+      </Menu>
     </Card>
   )
 }
